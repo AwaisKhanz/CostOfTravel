@@ -23,6 +23,14 @@ router.post('/', (req: Request, res: Response): void => {
       return;
     }
 
+    const bookingDate = new Date(input.bookingDateTimeLocal);
+    const departureDate = new Date(input.departureDateTimeLocal);
+
+    if (bookingDate >= departureDate) {
+      res.status(400).json({ error: 'Booking date must be before departure date' });
+      return;
+    }
+
     // 1. INPUT -> 2. GEOGRAPHY -> 3. SCENARIO
     const nowUTC = new Date(); // Server-side strict time
     const { scenario, jurisdiction } = mapScenario(input, nowUTC);

@@ -14,10 +14,10 @@ import { Input } from '@/components/ui/Input';
 
 const schema = z.object({
   airline: z.string().min(1, "Please select an airline"),
-  numberOfPassengers: z.number().min(1, "Minimum 1 passenger required"),
-  bagsPerPassenger: z.number().min(0, "Cannot be negative"),
-  bagWeightKg: z.number().min(0, "Weight cannot be negative"),
-  bagLinearSizeCm: z.number().min(0, "Size cannot be negative"),
+  numberOfPassengers: z.union([z.number(), z.string().length(0)]).refine(v => v !== "", "Required"),
+  bagsPerPassenger: z.union([z.number(), z.string().length(0)]).refine(v => v !== "", "Required"),
+  bagWeightKg: z.union([z.number(), z.string().length(0)]).refine(v => v !== "", "Required"),
+  bagLinearSizeCm: z.union([z.number(), z.string().length(0)]).refine(v => v !== "", "Required"),
   routeType: z.union([z.literal("domestic"), z.literal("international")]),
   purchaseChannel: z.union([z.literal("online"), z.literal("airport")])
 });
@@ -34,10 +34,10 @@ export default function FamilyBaggageQuiz() {
     resolver: zodResolver(schema),
     defaultValues: {
       airline: "",
-      numberOfPassengers: 1,
-      bagsPerPassenger: 1,
-      bagWeightKg: 20,
-      bagLinearSizeCm: 150,
+      numberOfPassengers: 1 as any,
+      bagsPerPassenger: 1 as any,
+      bagWeightKg: 20 as any,
+      bagLinearSizeCm: 150 as any,
       routeType: "domestic",
       purchaseChannel: "online"
     }
@@ -184,6 +184,10 @@ export default function FamilyBaggageQuiz() {
               {...register(currentQuestion.mapsTo, { valueAsNumber: true })}
               placeholder={currentQuestion.placeholder}
               leftIcon={getStepIcon(currentQuestion.mapsTo)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setValue(currentQuestion.mapsTo, val === "" ? "" : Number(val));
+              }}
             />
           )}
 

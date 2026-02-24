@@ -1,24 +1,66 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, Clock, Loader2, DollarSign, Calendar } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { 
+  CreditCard, 
+  ArrowRight, 
+  ArrowLeft, 
+  ShieldCheck, 
+  AlertCircle, 
+  CheckCircle2,
+  DollarSign,
+  Users,
+  Loader2,
+  MapPin,
+  Plane,
+  Info,
+  Clock,
+  AlertTriangle
+} from 'lucide-react';
 import { getApiUrl } from '@/lib/api-config';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+const schema = z.object({
+  airline: z.string().min(1, "Airline is required"),
+  departureDateTimeLocal: z.string().min(1, "Departure date and time is required"),
+  routeType: z.string().min(1, "Route type is required"),
+  hasCheckedInOnline: z.union([z.boolean(), z.string().min(1, "Required")]).refine(v => v !== null && v !== '', "Required"),
+  passengerCount: z.union([z.number(), z.string().length(0)]).refine(v => v !== "", "Passenger count is required")
+}).refine((data) => {
+  const departureData = new Date(data.departureDateTimeLocal);
+  const now = new Date();
+  return departureData > now;
+}, {
+  message: "Departure date must be in the future",
+  path: ["departureDateTimeLocal"]
+});
+
+type FormData = z.infer<typeof schema>;
+
 export default function BudgetCheckinQuizPage() {
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<any>({
-    airline: '',
-    departureDateTimeLocal: '',
-    routeType: '',
-    hasCheckedInOnline: '',
-    passengerCount: 1
-  });
   const [result, setResult] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { register, handleSubmit, formState: { errors }, setValue, watch, trigger } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      airline: '',
+      departureDateTimeLocal: '',
+      routeType: '',
+      hasCheckedInOnline: '' as any,
+      passengerCount: '' as any
+    }
+  });
+
+  const watchAll = watch();
 
   useEffect(() => {
     fetch(getApiUrl('tools/budget-checkin/questions'))
@@ -35,31 +77,33 @@ export default function BudgetCheckinQuizPage() {
       });
   }, []);
 
-  const handleInput = (key: string, value: any) => {
-    setAnswers({ ...answers, [key]: value });
-  };
+  const nextStep = async () => {
+    const currentQ = quizQuestions[step];
+    const field = currentQ.mapsTo as keyof FormData;
+    const isValid = await trigger(field);
 
-  const nextStep = () => {
-    if (step < quizQuestions.length - 1) {
-      setStep(step + 1);
-    } else {
-      submitQuiz();
+    if (isValid) {
+      if (step < quizQuestions.length - 1) {
+        setStep(step + 1);
+      } else {
+        handleSubmit(submitQuiz)();
+      }
     }
   };
 
-  const submitQuiz = async () => {
-    setIsLoading(true);
-    setStep(99); 
+  const submitQuiz = async (formData: FormData) => {
+    setCalculating(true);
     setError(null);
+    setStep(99);
 
     try {
       const payload = {
-        ...answers,
-        hasCheckedInOnline: answers.hasCheckedInOnline === "true",
-        passengerCount: Number(answers.passengerCount)
+        ...formData,
+        hasCheckedInOnline: formData.hasCheckedInOnline === "true" || formData.hasCheckedInOnline === true,
+        passengerCount: Number(formData.passengerCount)
       };
 
-      const res = await fetch(getApiUrl('tools/budget-checkin'), {
+      const response = await fetch(getApiUrl('tools/budget-checkin'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,14 +111,14 @@ export default function BudgetCheckinQuizPage() {
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Something went wrong');
-      setResult(data);
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.error || 'Something went wrong');
+      setResult(resData);
     } catch (err: any) {
       setError(err.message);
       setStep(quizQuestions.length - 1); 
     } finally {
-      setIsLoading(false);
+      setCalculating(false);
     }
   };
 
@@ -96,66 +140,97 @@ export default function BudgetCheckinQuizPage() {
         <h2 className="text-2xl font-extrabold text-foreground mb-8 tracking-tight leading-tight">{q.question}</h2>
         
         {q.inputType === "select" && (
-           <div className="space-y-3">
+           <div className="space-y-3 relative">
              <select 
                 title={q.question}
-                className="w-full p-5 rounded-button bg-background border border-border-subtle text-foreground font-bold focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all appearance-none"
-                value={answers[q.mapsTo]}
-                onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-             >
-               <option value="" disabled>Select Provider...</option>
-               {q.options.map((opt: any) => (
-                 <option key={opt.value} value={opt.value}>{opt.label}</option>
-               ))}
-             </select>
-           </div>
+                className="w-full p-5 bg-background border border-border-subtle rounded-button font-bold text-foreground focus:ring-2 focus:ring-brand-primary/20 outline-none appearance-none transition-all"
+                {...register(q.mapsTo as keyof FormData)}
+              >
+                <option value="">Select Carrier...</option>
+                {q.options.map((opt: any) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground/20">
+                <ArrowRight className="w-4 h-4 rotate-90" />
+              </div>
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
+            </div>
         )}
 
         {q.inputType === "radio" && (
           <div className="space-y-3">
             {q.options.map((opt: any) => (
-               <button
-                  key={opt.value}
-                  onClick={() => handleInput(q.mapsTo, opt.value)}
-                  className={`w-full p-5 text-left rounded-button border transition-all flex items-center justify-between group ${
-                  answers[q.mapsTo] === opt.value
-                    ? 'border-brand-primary bg-brand-primary/10 shadow-sm'
-                    : 'border-border-subtle bg-background hover:border-brand-primary/30'
+                <button
+                  key={String(opt.value)}
+                  type="button"
+                  onClick={() => {
+                    const val = opt.value === "true" ? true : opt.value === "false" ? false : opt.value;
+                    setValue(q.mapsTo as keyof FormData, val as any);
+                  }}
+                  className={`p-6 rounded-button border text-left transition-all font-bold flex items-center justify-between group active:scale-[0.98] ${
+                    String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value)
+                      ? 'border-brand-primary bg-brand-primary/5 text-brand-primary shadow-sm'
+                      : 'border-border-subtle bg-background hover:border-brand-primary/30'
                   }`}
-               >
-                 <span className={`font-bold ${answers[q.mapsTo] === opt.value ? 'text-brand-primary' : 'text-foreground'}`}>
-                   {opt.label}
-                 </span>
-                 {answers[q.mapsTo] === opt.value && <CheckCircle2 className="h-5 w-5 text-brand-primary" />}
-               </button>
-            ))}
-          </div>
+                >
+                  <span>{opt.label}</span>
+                  {String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value) && <CheckCircle2 className="w-5 h-5" />}
+                </button>
+              ))}
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
+            </div>
         )}
 
         {q.inputType === "datetime-local" && (
-          <Input 
-            type="datetime-local"
-            value={answers[q.mapsTo]}
-            onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-            leftIcon={<Clock className="w-4 h-4" />}
-          />
+          <div className="space-y-2">
+            <Input 
+              type="datetime-local"
+              {...register(q.mapsTo as keyof FormData)}
+              leftIcon={<Clock className="w-4 h-4" />}
+            />
+            {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
+          </div>
         )}
 
         {q.inputType === "number" && (
-          <Input 
-            type="number"
-            min="1"
-            value={answers[q.mapsTo]}
-            onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-            error={q.validation}
-            leftIcon={<ShieldCheck className="w-4 h-4" />}
-          />
+          <div className="space-y-2">
+              <Input 
+                type="number"
+                step="1"
+                min="1"
+                max="9"
+                placeholder="1"
+                {...register(q.mapsTo as keyof FormData, { valueAsNumber: true })}
+                leftIcon={<Users className="w-4 h-4" />}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setValue(q.mapsTo as keyof FormData, val === "" ? 1 : Number(val));
+                }}
+              />
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
+            </div>
         )}
 
         <div className="mt-12">
           <Button 
             onClick={nextStep}
-            disabled={!answers[q.mapsTo]}
             className="w-full"
             rightIcon={<ArrowRight className="w-5 h-5" />}
           >
@@ -169,7 +244,7 @@ export default function BudgetCheckinQuizPage() {
   return (
     <div className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center">
       <div className="max-w-xl w-full">
-        {isLoading && step === 0 ? (
+        {isLoading && !calculating ? (
           <div className="bg-card p-12 rounded-card border border-border-subtle shadow-premium text-center">
              <Loader2 className="w-12 h-12 text-brand-primary animate-spin mx-auto mb-4" />
              <h2 className="text-2xl font-extrabold text-foreground tracking-tight animate-pulse">Initializing Auditor...</h2>
@@ -193,7 +268,7 @@ export default function BudgetCheckinQuizPage() {
 
             {error && <div className="mb-6 p-4 bg-brand-danger/10 text-brand-danger rounded-button border border-brand-danger/20 font-bold text-sm flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {error}</div>}
 
-            {step === 99 && isLoading ? (
+            {step === 99 && calculating ? (
               <div className="bg-card p-12 rounded-card border border-border-subtle shadow-premium text-center">
                 <Loader2 className="w-16 h-16 text-brand-primary mx-auto mb-6 animate-spin" />
                 <h2 className="text-2xl font-extrabold text-foreground tracking-tight animate-pulse">Checking Deadlines...</h2>
@@ -265,13 +340,16 @@ export default function BudgetCheckinQuizPage() {
               </div>
             )}
 
-            <button 
-              onClick={() => {
-                setStep(0);
-                setResult(null);
-                setAnswers({ airline: '', departureDateTimeLocal: '', routeType: '', hasCheckedInOnline: '', passengerCount: 1 });
-              }}
-              className="mt-10 text-foreground/40 font-bold text-sm hover:text-brand-primary transition-colors hover:underline"
+            <button                    onClick={() => {
+                      setStep(0);
+                      setResult(null);
+                      setValue('airline', '');
+                      setValue('hasCheckedInOnline', '' as any);
+                      setValue('passengerCount', '' as any);
+                      setValue('departureDateTimeLocal', '');
+                      setValue('routeType', '');
+                    }}
+className="mt-10 text-foreground/40 font-bold text-sm hover:text-brand-primary transition-colors hover:underline"
             >
               Check Another Flight
             </button>

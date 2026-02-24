@@ -27,6 +27,14 @@ router.post('/', (req: Request, res: Response): void => {
        return;
     }
 
+    const sailDate = new Date(input.sailDateLocal);
+    const cancellationDate = new Date(input.cancellationDateLocal);
+
+    if (cancellationDate > sailDate) {
+      res.status(400).json({ error: 'Cancellation date cannot be after the sail date' });
+      return;
+    }
+
     const nowUTC = new Date(); // Strict server-side time control
 
     // 1. INPUT -> 2. POLICY FETCH & SCENARIO

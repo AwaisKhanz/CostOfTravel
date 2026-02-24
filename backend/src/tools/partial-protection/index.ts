@@ -19,6 +19,15 @@ router.post('/', (req, res) => {
   try {
     const input = req.body as PartialProtectionInput;
     
+    if (input.protectionType === 'insurance' && input.insurancePurchaseDateLocal && input.bookingDateLocal) {
+      const bookingDate = new Date(input.bookingDateLocal);
+      const insuranceDate = new Date(input.insurancePurchaseDateLocal);
+      if (bookingDate > insuranceDate) {
+        res.status(400).json({ error: 'Trip must be booked on or before insurance purchase date' });
+        return;
+      }
+    }
+    
     // 1. Fetch Policy
     const policy = fetchPolicy(input.protectionProviderId);
     

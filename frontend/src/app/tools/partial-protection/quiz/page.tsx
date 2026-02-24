@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { 
   ShieldCheck, 
   ArrowRight, 
@@ -17,28 +20,60 @@ import { getApiUrl } from '@/lib/api-config';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+const schema = z.object({
+  tripCosts: z.object({
+    airfare: z.union([z.number(), z.string().length(0)]),
+    hotel: z.union([z.number(), z.string().length(0)]),
+    cruise: z.union([z.number(), z.string().length(0)]),
+    excursions: z.union([z.number(), z.string().length(0)]),
+    baggageFees: z.union([z.number(), z.string().length(0)]),
+    petFees: z.union([z.number(), z.string().length(0)])
+  }),
+  protectionType: z.string().min(1, "Please select protection type"),
+  protectionProviderId: z.string().min(1, "Please select provider"),
+  bookingDateLocal: z.string().min(1, "Booking date is required"),
+  insurancePurchaseDateLocal: z.string().min(1, "Insurance purchase date is required"),
+  cancellationReason: z.string().min(1, "Cancellation reason is required")
+}).refine((data) => {
+  if (data.protectionType !== 'insurance' || !data.insurancePurchaseDateLocal) return true;
+  const booking = new Date(data.bookingDateLocal);
+  const insurance = new Date(data.insurancePurchaseDateLocal);
+  return booking <= insurance;
+}, {
+  message: "Trip must be booked on or before insurance purchase date",
+  path: ["bookingDateLocal"]
+});
+
+type FormData = z.infer<typeof schema>;
+
 export default function PartialProtectionQuizPage() {
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<any>({
-    tripCosts: {
-      airfare: '',
-      hotel: '',
-      cruise: '',
-      excursions: '',
-      baggageFees: '',
-      petFees: ''
-    },
-    protectionType: '',
-    protectionProviderId: '',
-    bookingDateLocal: '',
-    insurancePurchaseDateLocal: '',
-    cancellationReason: ''
-  });
   const [result, setResult] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { register, handleSubmit, formState: { errors }, watch, setValue, trigger } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      tripCosts: {
+        airfare: 0,
+        hotel: 0,
+        cruise: 0,
+        excursions: 0,
+        baggageFees: 0,
+        petFees: 0
+      },
+      protectionType: '',
+      protectionProviderId: '',
+      bookingDateLocal: '',
+      insurancePurchaseDateLocal: '',
+      cancellationReason: ''
+    }
+  });
+
+  const watchAll = watch();
 
   useEffect(() => {
     async function loadQuestions() {
@@ -57,28 +92,27 @@ export default function PartialProtectionQuizPage() {
     trackEvent('tool_view', { toolId: 'partial_protection' });
   }, []);
 
-  const handleInput = (key: string, value: any) => {
-    setAnswers({ ...answers, [key]: value });
-  };
-
-  const handleCostInput = (category: string, value: string) => {
-    setAnswers({
-      ...answers,
-      tripCosts: {
-        ...answers.tripCosts,
-        [category]: value
-      }
-    });
-  };
-
-  const nextStep = () => {
+  const nextStep = async () => {
     const currentQ = quizQuestions[step];
     
+    // Validate current field if applicable
+    if (currentQ.mapsTo && currentQ.inputType !== "multi-currency") {
+      const isValid = await trigger(currentQ.mapsTo as keyof FormData);
+      if (!isValid) return;
+    }
+
+    if (currentQ.inputType === "multi-currency") {
+        // Just trigger validation for tripCosts object
+        const isValid = await trigger('tripCosts');
+        if (!isValid) return;
+    }
+
     // Check if next step is skipped by condition
     let nextIdx = step + 1;
     while (nextIdx < quizQuestions.length) {
       const q = quizQuestions[nextIdx];
-      if (!q.condition || q.condition(answers)) {
+      // Note: conditions might need to be evaluated based on watchAll
+      if (!q.condition || q.condition(watchAll)) {
         break;
       }
       nextIdx++;
@@ -87,7 +121,7 @@ export default function PartialProtectionQuizPage() {
     if (nextIdx < quizQuestions.length) {
       setStep(nextIdx);
     } else {
-      submitQuiz();
+      handleSubmit(submitQuiz)();
     }
   };
 
@@ -95,7 +129,7 @@ export default function PartialProtectionQuizPage() {
     let prevIdx = step - 1;
     while (prevIdx >= 0) {
       const q = quizQuestions[prevIdx];
-      if (!q.condition || q.condition(answers)) {
+      if (!q.condition || q.condition(watchAll)) {
         break;
       }
       prevIdx--;
@@ -103,37 +137,37 @@ export default function PartialProtectionQuizPage() {
     if (prevIdx >= 0) setStep(prevIdx);
   };
 
-  const submitQuiz = async () => {
+  const submitQuiz = async (formData: FormData) => {
     setIsSubmitting(true);
     setError(null);
     setStep(99);
 
     const formattedAnswers = {
-      ...answers,
+      ...formData,
       tripCosts: Object.fromEntries(
-        Object.entries(answers.tripCosts).map(([k, v]) => [k, parseFloat(v as string) || 0])
+        Object.entries(formData.tripCosts).map(([k, v]) => [k, parseFloat(v as string) || 0])
       )
     };
 
     try {
-      const res = await fetch(getApiUrl('tools/partial-protection'), {
+      const response = await fetch(getApiUrl('tools/partial-protection'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formattedAnswers),
       });
 
-      if (!res.ok) {
-        const errData = await res.json();
+      if (!response.ok) {
+        const errData = await response.json();
         throw new Error(errData.error || "Calculation failed");
       }
 
-      const data = await res.json();
-      setResult(data);
+      const resData = await response.json();
+      setResult(resData);
       
       trackEvent('tool_complete', { 
         toolId: 'partial_protection', 
-        scenario: data.output.scenario,
-        outcomeRisk: data.output.outcomeRisk 
+        scenario: resData.output.scenario,
+        outcomeRisk: resData.output.outcomeRisk 
       });
 
     } catch (err: any) {
@@ -169,9 +203,13 @@ export default function PartialProtectionQuizPage() {
                 label={field.label}
                 type="number"
                 placeholder="0.00"
-                value={answers.tripCosts[field.name]}
-                onChange={(e) => handleCostInput(field.name, e.target.value)}
+                {...register(`tripCosts.${field.name as keyof FormData['tripCosts']}` as const, { valueAsNumber: true })}
                 leftIcon={<DollarSign className="w-4 h-4" />}
+                className="mb-1"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setValue(`tripCosts.${field.name as keyof FormData['tripCosts']}` as const, val === "" ? 0 : Number(val));
+                }}
               />
             ))}
           </div>
@@ -182,27 +220,34 @@ export default function PartialProtectionQuizPage() {
             {q.options.map((opt: any) => (
               <button
                 key={opt.value}
-                onClick={() => handleInput(q.mapsTo, opt.value)}
+                onClick={() => {
+                  const val = opt.value === "true" ? true : opt.value === "false" ? false : opt.value;
+                  setValue(q.mapsTo as keyof FormData, val as any);
+                }}
                 className={`w-full p-5 text-left rounded-button border transition-all flex items-center justify-between group ${
-                  answers[q.mapsTo] === opt.value
+                  String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value)
                     ? 'border-brand-primary bg-brand-primary/10 shadow-sm'
                     : 'border-border-subtle bg-background hover:border-brand-primary/30'
                 }`}
               >
-                <span className={`font-bold ${answers[q.mapsTo] === opt.value ? 'text-brand-primary' : 'text-foreground'}`}>
+                <span className={`font-bold ${String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value) ? 'text-brand-primary' : 'text-foreground'}`}>
                   {opt.label}
                 </span>
-                {answers[q.mapsTo] === opt.value && <CheckCircle2 className="h-5 w-5 text-brand-primary" />}
+                {String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value) && <CheckCircle2 className="h-5 w-5 text-brand-primary" />}
               </button>
             ))}
+            {errors[q.mapsTo as keyof FormData] && (
+               <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                 <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+               </p>
+             )}
           </div>
         )}
 
         {q.inputType === "select" && (
           <div className="space-y-3">
             <select 
-              value={answers[q.mapsTo]}
-              onChange={(e) => handleInput(q.mapsTo, e.target.value)}
+              {...register(q.mapsTo as keyof FormData)}
               className="w-full p-5 bg-background border border-border-subtle rounded-button font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none appearance-none"
             >
               <option value="" disabled>Select Provider...</option>
@@ -210,16 +255,28 @@ export default function PartialProtectionQuizPage() {
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+            {errors[q.mapsTo as keyof FormData] && (
+               <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                 <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+               </p>
+             )}
           </div>
         )}
 
         {q.inputType === "date" && (
-          <Input
-            type="date"
-            value={answers[q.mapsTo]}
-            onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-            leftIcon={<Calendar className="w-4 h-4" />}
-          />
+          <>
+            <Input
+              type="date"
+              {...register(q.mapsTo as keyof FormData)}
+              leftIcon={<Calendar className="w-4 h-4" />}
+              className="mb-1"
+            />
+            {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                    <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+            )}
+          </>
         )}
 
         <div className="mt-12 flex gap-4">
@@ -235,7 +292,6 @@ export default function PartialProtectionQuizPage() {
           )}
           <Button 
             onClick={nextStep}
-            disabled={!answers[q.mapsTo] && q.inputType !== "multi-currency"}
             rightIcon={<ArrowRight className="w-5 h-5" />}
             className="flex-[2]"
           >
@@ -281,7 +337,7 @@ export default function PartialProtectionQuizPage() {
             <ToolResult result={result} />
             <div className="text-center">
               <button 
-                onClick={() => { setStep(0); setResult(null); }}
+                onClick={() => { setStep(0); setResult(null); setValue('tripCosts', { airfare: '', hotel: '', cruise: '', excursions: '', baggageFees: '', petFees: '' }); setValue('protectionType', ''); setValue('protectionProviderId', ''); setValue('bookingDateLocal', ''); setValue('insurancePurchaseDateLocal', ''); setValue('cancellationReason', ''); }}
                 className="text-brand-primary font-bold hover:underline"
               >
                 Start New Audit

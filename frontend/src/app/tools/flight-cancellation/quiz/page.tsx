@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { 
   CreditCard, 
   ArrowRight, 
@@ -22,21 +25,45 @@ import { trackEvent } from '@/lib/tracking';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+const schema = z.object({
+  airline: z.string().min(1, "Airline is required"),
+  fareClassId: z.string().min(1, "Fare class is required"),
+  bookingDateTimeLocal: z.string().min(1, "Booking date is required"),
+  departureDateTimeLocal: z.string().min(1, "Departure date is required"),
+  ticketPrice: z.union([z.number(), z.string().length(0)]).refine(v => v !== "", "Ticket price is required"),
+  originAirportIATA: z.string().length(3, "Must be a 3-letter IATA code").toUpperCase()
+}).refine((data) => {
+  const booking = new Date(data.bookingDateTimeLocal);
+  const departure = new Date(data.departureDateTimeLocal);
+  return booking < departure;
+}, {
+  message: "Booking date must be before departure date",
+  path: ["bookingDateTimeLocal"]
+});
+
+type FormData = z.infer<typeof schema>;
+
 export default function FlightCancellationQuizPage() {
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<any>({
-    airline: '',
-    fareClassId: '',
-    bookingDateTimeLocal: '',
-    departureDateTimeLocal: '',
-    ticketPrice: '',
-    originAirportIATA: ''
-  });
   const [result, setResult] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { register, handleSubmit, formState: { errors }, setValue, watch, trigger } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      airline: '',
+      fareClassId: '',
+      bookingDateTimeLocal: '',
+      departureDateTimeLocal: '',
+      ticketPrice: 0,
+      originAirportIATA: ''
+    }
+  });
+
+  const watchAll = watch();
 
   useEffect(() => {
     async function loadQuestions() {
@@ -54,27 +81,29 @@ export default function FlightCancellationQuizPage() {
     loadQuestions();
   }, []);
 
-  const handleInput = (key: string, value: any) => {
-    setAnswers({ ...answers, [key]: value });
-  };
+  const nextStep = async () => {
+    const currentQ = quizQuestions[step];
+    const field = currentQ.mapsTo as keyof FormData;
+    const isValid = await trigger(field);
 
-  const nextStep = () => {
-    if (step < quizQuestions.length - 1) {
-      setStep(step + 1);
-    } else {
-      submitQuiz();
+    if (isValid) {
+      if (step < quizQuestions.length - 1) {
+        setStep(step + 1);
+      } else {
+        handleSubmit(submitQuiz)();
+      }
     }
   };
 
-  const submitQuiz = async () => {
+  const submitQuiz = async (data: FormData) => {
     setCalculating(true);
     setError(null);
     setStep(99);
 
     const payload = {
-      ...answers,
-      ticketPrice: Number(answers.ticketPrice),
-      originAirportIATA: answers.originAirportIATA?.toUpperCase().trim()
+      ...data,
+      ticketPrice: Number(data.ticketPrice),
+      originAirportIATA: data.originAirportIATA.toUpperCase().trim()
     };
 
     trackEvent('tool_submit', { toolId: 'flight-cancellation', airline: payload.airline });
@@ -130,8 +159,7 @@ export default function FlightCancellationQuizPage() {
                <select 
                 title={q.question}
                 className="w-full p-5 bg-background border border-border-subtle rounded-button font-bold text-foreground focus:ring-2 focus:ring-brand-primary/20 outline-none appearance-none transition-all"
-                value={answers[q.mapsTo]}
-                onChange={(e) => handleInput(q.mapsTo, e.target.value)}
+                {...register(q.mapsTo as keyof FormData)}
               >
                 <option value="">Select Carrier...</option>
                 {q.options.map((opt: any) => (
@@ -141,6 +169,11 @@ export default function FlightCancellationQuizPage() {
               <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground/20">
                 <ArrowRight className="w-4 h-4 rotate-90" />
               </div>
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
             </div>
           )}
 
@@ -150,58 +183,87 @@ export default function FlightCancellationQuizPage() {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => handleInput(q.mapsTo, opt.value)}
+                  onClick={() => {
+                    const val = opt.value === "true" ? true : opt.value === "false" ? false : opt.value;
+                    setValue(q.mapsTo as keyof FormData, val as any);
+                  }}
                   className={`p-6 rounded-button border text-left transition-all font-bold flex items-center justify-between group active:scale-[0.98] ${
-                    answers[q.mapsTo] === opt.value
+                    String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value)
                       ? 'border-brand-primary bg-brand-primary/5 text-brand-primary shadow-sm'
                       : 'border-border-subtle bg-background hover:border-brand-primary/30'
                   }`}
                 >
                   <span>{opt.label}</span>
-                  {answers[q.mapsTo] === opt.value && <CheckCircle2 className="w-5 h-5" />}
+                  {String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value) && <CheckCircle2 className="w-5 h-5" />}
                 </button>
               ))}
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
             </div>
           )}
 
           {q.inputType === "datetime-local" && (
-            <Input 
-              type="datetime-local"
-              value={answers[q.mapsTo]}
-              onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-              leftIcon={<Clock className="w-4 h-4" />}
-            />
+            <div className="space-y-2">
+              <Input 
+                type="datetime-local"
+                {...register(q.mapsTo as keyof FormData)}
+                leftIcon={<Clock className="w-4 h-4" />}
+              />
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
+            </div>
           )}
 
           {q.inputType === "number" && (
-            <Input 
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              value={answers[q.mapsTo]}
-              onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-              leftIcon={<DollarSign className="w-4 h-4" />}
-            />
+            <div className="space-y-2">
+              <Input 
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                {...register(q.mapsTo as keyof FormData, { valueAsNumber: true })}
+                leftIcon={<DollarSign className="w-4 h-4" />}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setValue(q.mapsTo as keyof FormData, val === "" ? 0 : Number(val));
+                }}
+              />
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
+            </div>
           )}
 
           {q.inputType === "text" && (
-            <Input 
-              type="text"
-              maxLength={3}
-              placeholder={q.placeholder}
-              value={answers[q.mapsTo]}
-              onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-              leftIcon={<MapPin className="w-4 h-4" />}
-              className="uppercase"
-            />
+            <div className="space-y-2">
+              <Input 
+                type="text"
+                maxLength={3}
+                placeholder={q.placeholder}
+                {...register(q.mapsTo as keyof FormData)}
+                leftIcon={<MapPin className="w-4 h-4" />}
+                className="uppercase"
+              />
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                  <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
         <div className="mt-12 flex flex-col gap-4">
           <Button 
             onClick={nextStep}
-            disabled={!answers[q.mapsTo] || (q.mapsTo === 'originAirportIATA' && answers[q.mapsTo].length !== 3)}
             className="w-full"
             rightIcon={step === quizQuestions.length - 1 ? <ShieldCheck className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
           >
@@ -270,14 +332,12 @@ export default function FlightCancellationQuizPage() {
                     onClick={() => {
                       setStep(0);
                       setResult(null);
-                      setAnswers({
-                        airline: '',
-                        fareClassId: '',
-                        bookingDateTimeLocal: '',
-                        departureDateTimeLocal: '',
-                        ticketPrice: '',
-                        originAirportIATA: ''
-                      });
+                      setValue('airline', '');
+                      setValue('fareClassId', '');
+                      setValue('bookingDateTimeLocal', '');
+                      setValue('departureDateTimeLocal', '');
+                      setValue('ticketPrice', '' as any);
+                      setValue('originAirportIATA', '');
                     }}
                     className="text-foreground/40 font-bold text-sm hover:text-brand-primary transition-colors flex items-center justify-center gap-2 mx-auto hover:underline"
                    >

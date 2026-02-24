@@ -27,7 +27,13 @@ router.post('/', (req: Request, res: Response): void => {
        return;
     }
 
+    const departureDate = new Date(input.departureDateTimeLocal);
     const nowUTC = new Date(); // Strict server-side time control
+
+    if (departureDate < nowUTC) {
+      res.status(400).json({ error: 'Flight has already departed' });
+      return;
+    }
 
     // 1. INPUT -> 2. POLICY FETCH & SCENARIO
     const mapper = mapScenario(input, nowUTC);

@@ -1,26 +1,51 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { ShieldCheck, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, Clock, MapPin, HelpCircle, Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/lib/api-config';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+const schema = z.object({
+  bookingDateTimeLocal: z.string().min(1, "Booking date is required"),
+  departureDateTimeLocal: z.string().min(1, "Departure date is required"),
+  originAirportIATA: z.string().length(3, "Must be a 3-letter IATA code").toUpperCase(),
+  bookingChannel: z.string().min(1, "Booking channel is required")
+}).refine((data) => {
+  const booking = new Date(data.bookingDateTimeLocal);
+  const departure = new Date(data.departureDateTimeLocal);
+  return booking < departure;
+}, {
+  message: "Booking date must be before departure date",
+  path: ["bookingDateTimeLocal"]
+});
+
+type FormData = z.infer<typeof schema>;
+
 export default function TwentyFourHourCancellationQuizPage() {
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<any>({
-    bookingDateTimeLocal: '',
-    departureDateTimeLocal: '',
-    originAirportIATA: '',
-    bookingChannel: ''
-  });
   const [result, setResult] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { register, handleSubmit, formState: { errors }, setValue, watch, trigger } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      bookingDateTimeLocal: '',
+      departureDateTimeLocal: '',
+      originAirportIATA: '',
+      bookingChannel: ''
+    }
+  });
+
+  const watchAll = watch();
+
   // Autocomplete state
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchAirportQuery] = useState('');
   const [airports, setAirports] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
@@ -39,40 +64,42 @@ export default function TwentyFourHourCancellationQuizPage() {
       });
   }, []);
 
-  const handleInput = (key: string, value: string) => {
-    setAnswers({ ...answers, [key]: value });
-  };
-
-  const nextStep = () => {
-    if (step < quizQuestions.length - 1) {
-      setStep(step + 1);
-    } else {
-      submitQuiz(answers.bookingChannel);
+  const nextStep = async () => {
+    const currentQ = quizQuestions[step];
+    const field = currentQ.mapsTo as keyof FormData;
+    const isValid = await trigger(field);
+    
+    if (isValid) {
+      if (step < quizQuestions.length - 1) {
+        setStep(step + 1);
+      }
     }
   };
 
-  const submitQuiz = async (channel: string) => {
+  const submitQuiz = async (data: FormData) => {
     setIsLoading(true);
     setError(null);
     setStep(99);
 
     try {
       const payload = {
-        bookingDateTimeLocal: new Date(answers.bookingDateTimeLocal).toISOString(),
-        departureDateTimeLocal: new Date(answers.departureDateTimeLocal).toISOString(),
-        originAirportIATA: answers.originAirportIATA.toUpperCase(),
-        bookingChannel: channel || answers.bookingChannel
+        bookingDateTimeLocal: new Date(data.bookingDateTimeLocal).toISOString(),
+        departureDateTimeLocal: new Date(data.departureDateTimeLocal).toISOString(),
+        originAirportIATA: data.originAirportIATA.toUpperCase(),
+        bookingChannel: data.bookingChannel
       };
 
       const response = await fetch(getApiUrl('tools/24h-cancellation'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error('Failed to calculate outcome');
-      const data = await response.json();
-      setResult(data);
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.error || 'Something went wrong');
+      setResult(resData);
     } catch (err: any) {
       setError(err.message);
       setStep(quizQuestions.length - 1); // Go back to last step on error
@@ -82,7 +109,7 @@ export default function TwentyFourHourCancellationQuizPage() {
   };
 
   const handleAirportSearch = (query: string) => {
-    setSearchQuery(query);
+    setSearchAirportQuery(query);
     if (!query || query.length < 2) {
       setAirports([]);
       setShowDropdown(false);
@@ -103,8 +130,8 @@ export default function TwentyFourHourCancellationQuizPage() {
   };
 
   const selectAirport = (iata: string, label: string) => {
-    handleInput('originAirportIATA', iata);
-    setSearchQuery(label);
+    setValue('originAirportIATA', iata);
+    setSearchAirportQuery(label);
     setShowDropdown(false);
   };
 
@@ -197,8 +224,8 @@ export default function TwentyFourHourCancellationQuizPage() {
                </div>
             )}
 
-            <div className="flex flex-col gap-4">
-               <button onClick={() => { setStep(0); setAnswers({}); setResult(null); setSearchQuery(''); }} className="text-foreground/40 font-bold text-sm hover:text-brand-primary transition-colors flex items-center justify-center gap-2">
+            <div className="flex flex-col gap-4 text-center">
+               <button onClick={() => { setStep(0); setValue('bookingDateTimeLocal', ''); setValue('departureDateTimeLocal', ''); setValue('originAirportIATA', ''); setValue('bookingChannel', ''); setResult(null); setSearchAirportQuery(''); }} className="text-foreground/40 font-bold text-sm hover:text-brand-primary transition-colors flex items-center justify-center gap-2">
                  Check Another Flight
                </button>
             </div>
@@ -218,13 +245,16 @@ export default function TwentyFourHourCancellationQuizPage() {
               <>
                 <Input 
                   type="datetime-local" 
-                  value={answers[quizQuestions[step].mapsTo]}
-                  onChange={(e) => handleInput(quizQuestions[step].mapsTo, e.target.value)}
+                  {...register(quizQuestions[step].mapsTo as keyof FormData)}
                   leftIcon={<Clock className="w-4 h-4" />}
-                  className="mb-8"
+                  className="mb-2"
                 />
+                {errors[quizQuestions[step].mapsTo as keyof FormData] && (
+                  <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <AlertCircle className="w-3 h-3" /> {errors[quizQuestions[step].mapsTo as keyof FormData]?.message}
+                  </p>
+                )}
                 <Button
-                  disabled={!answers[quizQuestions[step].mapsTo]}
                   onClick={nextStep}
                   rightIcon={<ArrowRight className="w-5 h-5" />}
                   className="w-full"
@@ -236,7 +266,7 @@ export default function TwentyFourHourCancellationQuizPage() {
 
             {quizQuestions[step].inputType === 'autocomplete' && (
               <>
-                <div className="relative mb-8">
+                <div className="relative mb-2">
                   <Input 
                     type="text" 
                     placeholder={quizQuestions[step].placeholder}
@@ -258,8 +288,12 @@ export default function TwentyFourHourCancellationQuizPage() {
                     </ul>
                   )}
                 </div>
+                {errors.originAirportIATA && (
+                  <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <AlertCircle className="w-3 h-3" /> {errors.originAirportIATA?.message}
+                  </p>
+                )}
                 <Button
-                  disabled={!answers[quizQuestions[step].mapsTo] || answers[quizQuestions[step].mapsTo].length !== 3}
                   onClick={nextStep}
                   rightIcon={<ArrowRight className="w-5 h-5" />}
                   className="w-full"
@@ -275,17 +309,23 @@ export default function TwentyFourHourCancellationQuizPage() {
                    <button
                    key={option.value}
                    onClick={() => {
-                     handleInput(quizQuestions[step].mapsTo, option.value);
-                     submitQuiz(option.value);
+                     const val = option.value === "true" ? true : option.value === "false" ? false : option.value;
+                     setValue('bookingChannel', val as any);
+                     handleSubmit(submitQuiz)();
                    }}
                    className="w-full text-left p-6 rounded-button border border-border-subtle bg-background hover:border-brand-primary hover:bg-brand-primary/5 transition-all group active:scale-[0.98] shadow-sm flex items-center justify-between"
                  >
-                   <span className="font-bold text-foreground group-hover:text-brand-primary transition-colors">
+                   <span className={`font-bold transition-colors ${String(watchAll.bookingChannel) === String(option.value) ? 'text-brand-primary' : 'text-foreground hover:text-brand-primary'}`}>
                      {option.label}
                    </span>
-                   <ArrowRight className="h-5 w-5 text-foreground/20 group-hover:text-brand-primary transition-all group-hover:translate-x-1" />
+                   <ArrowRight className={`h-5 w-5 transition-all group-hover:translate-x-1 ${String(watchAll.bookingChannel) === String(option.value) ? 'text-brand-primary' : 'text-foreground/20 group-hover:text-brand-primary'}`} />
                  </button>
                 ))}
+                {errors.bookingChannel && (
+                  <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-4 flex items-center gap-2">
+                    <AlertCircle className="w-3 h-3" /> {errors.bookingChannel?.message}
+                  </p>
+                )}
               </div>
             )}
           </div>

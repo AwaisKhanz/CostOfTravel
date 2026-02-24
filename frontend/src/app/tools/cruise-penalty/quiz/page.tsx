@@ -1,24 +1,50 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { ShieldCheck, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, TrendingUp, Loader2, DollarSign, Calendar } from 'lucide-react';
 import { getApiUrl } from '@/lib/api-config';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
+const schema = z.object({
+  cruiseLine: z.string().min(1, "Cruise line is required"),
+  sailDateLocal: z.string().min(1, "Sail date is required"),
+  cancellationDateLocal: z.string().min(1, "Cancellation date is required"),
+  totalTripCost: z.union([z.number(), z.string().length(0)]).refine(v => v !== "", "Total trip cost is required"),
+  fareType: z.string().min(1, "Fare type is required")
+}).refine((data) => {
+  const sail = new Date(data.sailDateLocal);
+  const cancel = new Date(data.cancellationDateLocal);
+  return cancel <= sail;
+}, {
+  message: "Cancellation date cannot be after the sail date",
+  path: ["cancellationDateLocal"]
+});
+
+type FormData = z.infer<typeof schema>;
+
 export default function CruisePenaltyQuizPage() {
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<any>({
-    cruiseLine: '',
-    sailDateLocal: '',
-    cancellationDateLocal: '',
-    totalTripCost: '',
-    fareType: ''
-  });
   const [result, setResult] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { register, handleSubmit, formState: { errors }, setValue, watch, trigger } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      cruiseLine: '',
+      sailDateLocal: '',
+      cancellationDateLocal: '',
+      totalTripCost: 0,
+      fareType: ''
+    }
+  });
+
+  const watchAll = watch();
 
   useEffect(() => {
     fetch(getApiUrl('tools/cruise-penalty/questions'))
@@ -36,19 +62,21 @@ export default function CruisePenaltyQuizPage() {
       });
   }, []);
 
-  const handleInput = (key: string, value: string | number) => {
-    setAnswers({ ...answers, [key]: value });
-  };
+  const nextStep = async () => {
+    const currentQ = quizQuestions[step];
+    const field = currentQ.mapsTo as keyof FormData;
+    const isValid = await trigger(field);
 
-  const nextStep = () => {
-    if (step < quizQuestions.length - 1) {
-      setStep(step + 1);
-    } else {
-      submitQuiz();
+    if (isValid) {
+      if (step < quizQuestions.length - 1) {
+        setStep(step + 1);
+      } else {
+        handleSubmit(submitQuiz)();
+      }
     }
   };
 
-  const submitQuiz = async () => {
+  const submitQuiz = async (formData: FormData) => {
     setIsLoading(true);
     setStep(99); // processing state
     setError(null);
@@ -56,11 +84,11 @@ export default function CruisePenaltyQuizPage() {
     try {
       // Cast trip cost to number to enforce type safety per spec
       const payload = {
-        ...answers,
-        totalTripCost: Number(answers.totalTripCost)
+        ...formData,
+        totalTripCost: Number(formData.totalTripCost)
       };
 
-      const res = await fetch(getApiUrl('tools/cruise-penalty'), {
+      const response = await fetch(getApiUrl('tools/cruise-penalty'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,9 +96,9 @@ export default function CruisePenaltyQuizPage() {
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Something went wrong');
-      setResult(data);
+      const resData = await response.json();
+      if (!response.ok) throw new Error(resData.error || 'Something went wrong');
+      setResult(resData);
     } catch (err: any) {
       setError(err.message);
       setStep(quizQuestions.length - 1); // go back to last step
@@ -101,14 +129,18 @@ export default function CruisePenaltyQuizPage() {
              <select 
                 title={q.question}
                 className="w-full p-5 rounded-button bg-background border border-border-subtle text-foreground font-bold focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all appearance-none"
-                value={answers[q.mapsTo]}
-                onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-             >
-               <option value="" disabled>Select Cruise Line...</option>
-               {q.options.map((opt: any) => (
-                 <option key={opt.value} value={opt.value}>{opt.label}</option>
-               ))}
-             </select>
+                {...register(q.mapsTo as keyof FormData)}
+              >
+                <option value="" disabled>Select Cruise Line...</option>
+                {q.options.map((opt: any) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {errors[q.mapsTo as keyof FormData] && (
+                <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                   <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+                </p>
+              )}
            </div>
         )}
 
@@ -117,46 +149,68 @@ export default function CruisePenaltyQuizPage() {
             {q.options.map((opt: any) => (
                <button
                   key={opt.value}
-                  onClick={() => handleInput(q.mapsTo, opt.value)}
+                  onClick={() => {
+                    const val = opt.value === "true" ? true : opt.value === "false" ? false : opt.value;
+                    setValue(q.mapsTo as keyof FormData, val as any);
+                  }}
                   className={`w-full p-5 text-left rounded-button border transition-all flex items-center justify-between group ${
-                  answers[q.mapsTo] === opt.value
+                    String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value)
                     ? 'border-brand-primary bg-brand-primary/10 shadow-sm'
                     : 'border-border-subtle bg-background hover:border-brand-primary/30'
                   }`}
                >
-                 <span className={`font-bold ${answers[q.mapsTo] === opt.value ? 'text-brand-primary' : 'text-foreground'}`}>
+                 <span className={`font-bold ${String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value) ? 'text-brand-primary' : 'text-foreground'}`}>
                    {opt.label}
                  </span>
-                 {answers[q.mapsTo] === opt.value && <CheckCircle2 className="h-5 w-5 text-brand-primary" />}
+                 {String(watchAll[q.mapsTo as keyof FormData]) === String(opt.value) && <CheckCircle2 className="h-5 w-5 text-brand-primary" />}
                </button>
             ))}
+            {errors[q.mapsTo as keyof FormData] && (
+              <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                 <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+              </p>
+            )}
           </div>
         )}
 
         {q.inputType === "date" && (
-          <Input 
-            type="date"
-            value={answers[q.mapsTo]}
-            onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-            error={q.validation}
-            leftIcon={<Calendar className="w-4 h-4" />}
-          />
+          <div className="space-y-2">
+            <Input 
+              type="date"
+              {...register(q.mapsTo as keyof FormData)}
+              leftIcon={<Calendar className="w-4 h-4" />}
+            />
+            {errors[q.mapsTo as keyof FormData] && (
+              <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                 <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+              </p>
+            )}
+          </div>
         )}
 
         {q.inputType === "currency" && (
-          <Input 
-            type="number"
-            placeholder="0.00"
-            value={answers[q.mapsTo]}
-            onChange={(e) => handleInput(q.mapsTo, e.target.value)}
-            leftIcon={<DollarSign className="w-4 h-4" />}
-          />
+          <div className="space-y-2">
+            <Input 
+              type="number"
+              placeholder="0.00"
+              {...register(q.mapsTo as keyof FormData, { valueAsNumber: true })}
+              leftIcon={<DollarSign className="w-4 h-4" />}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setValue(q.mapsTo as keyof FormData, val === "" ? 0 : Number(val));
+                }}
+            />
+            {errors[q.mapsTo as keyof FormData] && (
+              <p className="text-brand-danger text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                 <AlertCircle className="w-3 h-3" /> {errors[q.mapsTo as keyof FormData]?.message}
+              </p>
+            )}
+          </div>
         )}
 
         <div className="mt-12">
           <Button 
             onClick={nextStep}
-            disabled={!answers[q.mapsTo]}
             className="w-full"
             rightIcon={<ArrowRight className="w-5 h-5" />}
           >
@@ -271,7 +325,11 @@ export default function CruisePenaltyQuizPage() {
               onClick={() => {
                 setStep(0);
                 setResult(null);
-                setAnswers({ cruiseLine: '', sailDateLocal: '', cancellationDateLocal: '', totalTripCost: '', fareType: '' });
+                setValue('cruiseLine', '');
+                setValue('sailDateLocal', '');
+                setValue('cancellationDateLocal', '');
+                setValue('totalTripCost', '' as any);
+                setValue('fareType', '');
               }}
               className="mt-10 text-foreground/40 font-bold text-sm hover:text-brand-primary transition-colors hover:underline"
             >
