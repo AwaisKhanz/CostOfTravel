@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Briefcase, ArrowRight, ArrowLeft, Loader2, Info, CheckCircle2, AlertTriangle, XOctagon, HelpCircle } from 'lucide-react';
+import { Briefcase, ArrowRight, ArrowLeft, Loader2, Info, CheckCircle2, AlertTriangle, AlertCircle, HelpCircle, Weight, Ruler, Users, Layers, ShoppingCart, Plane, ShieldCheck } from 'lucide-react';
 import { ToolResult } from '@/components/tools/ToolResult';
 import { getApiUrl } from '@/lib/api-config';
 import { trackEvent } from '@/lib/tracking';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 const schema = z.object({
   airline: z.string().min(1, "Please select an airline"),
@@ -93,27 +95,28 @@ export default function FamilyBaggageQuiz() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="w-12 h-12 text-brand-primary animate-spin" />
-        <p className="mt-4 font-bold text-foreground/50 tracking-widest text-xs uppercase">initializing_engine...</p>
+        <p className="mt-4 font-black text-foreground/20 tracking-[0.3em] text-[10px] uppercase">initializing_engine...</p>
       </div>
     );
   }
 
   if (result) {
     return (
-      <div className="max-w-3xl mx-auto py-12 px-6">
+      <div className="max-w-3xl mx-auto py-12 px-6 animate-in zoom-in-95 duration-500">
         <ToolResult
           result={result}
         />
-        <div className="mt-8 flex justify-center">
-          <button 
+        <div className="mt-12 flex justify-center">
+          <Button 
             onClick={() => {
               setResult(null);
               setStep(1);
             }}
-            className="px-8 py-4 bg-brand-secondary-low text-foreground rounded-button font-bold hover:bg-brand-secondary hover:text-on-brand-secondary transition-all"
+            variant="secondary"
+            className="px-10"
           >
             Reset Auditor
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -122,103 +125,126 @@ export default function FamilyBaggageQuiz() {
   const currentQuestion = questions.find(q => q.step === step);
   if (!currentQuestion) return null;
 
+  const getStepIcon = (mapsTo: string) => {
+    switch (mapsTo) {
+        case 'airline': return <Plane className="w-4 h-4" />;
+        case 'numberOfPassengers': return <Users className="w-4 h-4" />;
+        case 'bagsPerPassenger': return <Layers className="w-4 h-4" />;
+        case 'bagWeightKg': return <Weight className="w-4 h-4" />;
+        case 'bagLinearSizeCm': return <Ruler className="w-4 h-4" />;
+        case 'purchaseChannel': return <ShoppingCart className="w-4 h-4" />;
+        default: return <Briefcase className="w-4 h-4" />;
+    }
+  };
+
   return (
-    <div className="max-w-2xl mx-auto py-12 px-6">
+    <div className="max-w-xl mx-auto py-16 px-6">
       <div className="mb-12">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary">
-            <Briefcase className="w-5 h-5" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary">
+              <Briefcase className="w-5 h-5" />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground/40">Step {step} of {questions.length}</span>
           </div>
-          <span className="text-xs font-black uppercase tracking-[0.2em] text-foreground/40">Step {step} of {questions.length}</span>
+          <span className="text-[10px] font-black text-brand-primary uppercase tracking-widest">{Math.round((step / questions.length) * 100)}%</span>
         </div>
-        <div className="w-full h-1.5 bg-brand-secondary-low rounded-full overflow-hidden">
+        <div className="w-full h-1 bg-brand-secondary-low rounded-full overflow-hidden">
           <div 
-            className="h-full bg-brand-primary transition-all duration-500 ease-out"
+            className="h-full bg-brand-primary transition-all duration-700 ease-out"
             style={{ width: `${(step / questions.length) * 100}%` }}
           />
         </div>
       </div>
 
-      <div className="bg-card border border-border-subtle rounded-card p-8 shadow-sm">
-        <h2 className="text-2xl font-extrabold mb-8 tracking-tight">{currentQuestion.question}</h2>
+      <div className="bg-card border border-border-subtle rounded-card p-10 shadow-premium animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <h2 className="text-2xl font-extrabold mb-10 tracking-tight leading-tight">{currentQuestion.question}</h2>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           {currentQuestion.inputType === 'select' && (
-            <select 
-              {...register(currentQuestion.mapsTo)}
-              className="w-full p-4 bg-background border border-border-subtle rounded-button font-medium focus:ring-2 focus:ring-brand-primary/20 outline-none appearance-none"
-            >
-              <option value="">Select Airline...</option>
-              {currentQuestion.options.map((opt: any) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+               <select 
+                {...register(currentQuestion.mapsTo)}
+                className="w-full p-5 bg-background border border-border-subtle rounded-button font-bold text-foreground focus:ring-2 focus:ring-brand-primary/20 outline-none appearance-none transition-all"
+              >
+                <option value="">Select Carrier...</option>
+                {currentQuestion.options.map((opt: any) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-foreground/20">
+                <ArrowRight className="w-4 h-4 rotate-90" />
+              </div>
+            </div>
           )}
 
           {currentQuestion.inputType === 'number' && (
-            <input 
+            <Input 
               type="number"
               {...register(currentQuestion.mapsTo, { valueAsNumber: true })}
               placeholder={currentQuestion.placeholder}
-              className="w-full p-4 bg-background border border-border-subtle rounded-button font-medium focus:ring-2 focus:ring-brand-primary/20 outline-none"
+              leftIcon={getStepIcon(currentQuestion.mapsTo)}
             />
           )}
 
           {currentQuestion.inputType === 'radio' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3">
               {currentQuestion.options.map((opt: any) => (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => setValue(currentQuestion.mapsTo, opt.value)}
-                  className={`p-4 rounded-button border text-left transition-all font-bold ${
+                  className={`p-6 rounded-button border text-left transition-all font-bold flex items-center justify-between group active:scale-[0.98] ${
                     watchAll[currentQuestion.mapsTo as keyof typeof watchAll] === opt.value
-                      ? 'border-brand-primary bg-brand-primary/5 text-brand-primary'
-                      : 'border-border-subtle bg-card hover:border-brand-primary/50'
+                      ? 'border-brand-primary bg-brand-primary/5 text-brand-primary shadow-sm'
+                      : 'border-border-subtle bg-background hover:border-brand-primary/30'
                   }`}
                 >
-                  {opt.label}
+                  <span>{opt.label}</span>
+                  {watchAll[currentQuestion.mapsTo as keyof typeof watchAll] === opt.value && <CheckCircle2 className="w-5 h-5" />}
                 </button>
               ))}
             </div>
           )}
 
           {errors[currentQuestion.mapsTo as keyof typeof errors] && (
-            <p className="text-sm font-bold text-brand-danger flex items-center gap-2">
-               <AlertTriangle className="w-4 h-4" /> {errors[currentQuestion.mapsTo as keyof typeof errors]?.message as string}
+            <p className="text-xs font-black uppercase tracking-widest text-brand-danger flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+               <AlertCircle className="w-4 h-4" /> {errors[currentQuestion.mapsTo as keyof typeof errors]?.message as string}
             </p>
           )}
         </div>
 
-        <div className="mt-12 flex justify-between items-center">
-          {step > 1 ? (
+        <div className="mt-12 flex flex-col gap-4">
+          <Button 
+            onClick={step === questions.length ? handleSubmit(onSubmit) : onNext}
+            isLoading={isSubmitting}
+            className="w-full"
+            rightIcon={step === questions.length ? <ShieldCheck className="w-5 h-5" /> : <ArrowRight className="w-5 h-5" />}
+          >
+            {step === questions.length ? 'Run Risk Audit' : 'Continue'}
+          </Button>
+
+          {step > 1 && (
             <button 
               onClick={onBack}
-              className="flex items-center gap-2 text-foreground/40 font-bold hover:text-foreground transition-colors"
+              className="py-4 text-foreground/40 font-bold text-sm hover:text-brand-primary transition-colors flex items-center justify-center gap-2"
             >
-              <ArrowLeft className="w-4 h-4" /> Back
+              <ArrowLeft className="w-4 h-4" /> Go Back
             </button>
-          ) : <div />}
-          
-          <button 
-            onClick={step === questions.length ? handleSubmit(onSubmit) : onNext}
-            disabled={isSubmitting}
-            className="px-8 py-4 bg-brand-primary text-on-brand-primary rounded-button font-extrabold shadow-premium hover:bg-brand-primary-hover transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
-          >
-            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : (
-              <>
-                {step === questions.length ? 'Run Risk Audit' : 'Next Step'} <ArrowRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
+          )}
         </div>
       </div>
       
-      <div className="mt-8 flex gap-4 p-4 bg-brand-secondary-low rounded-xl border border-border-subtle">
-        <Info className="w-5 h-5 text-brand-primary flex-shrink-0" />
-        <p className="text-xs text-foreground/50 font-medium leading-relaxed">
-          The baggage engine computes fees based on current airline tariffs. Mixed bag dimensions are calculated based on the standard bag entry provided. All calculations assume standard economy fares unless otherwise specified.
-        </p>
+      <div className="mt-10 flex gap-4 p-6 bg-brand-secondary-low/30 rounded-card border border-border-subtle animate-in fade-in delay-500 duration-700">
+        <div className="w-10 h-10 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center flex-shrink-0">
+          <Info className="w-5 h-5" />
+        </div>
+        <div>
+          <h4 className="text-[10px] font-black uppercase tracking-widest text-foreground/40 mb-1">Computational Model</h4>
+          <p className="text-xs text-foreground/60 font-medium leading-relaxed">
+            The baggage engine computes fees based on current airline tariffs. Mixed bag dimensions are calculated based on the standard bag entry provided. All calculations assume standard economy fares unless otherwise specified.
+          </p>
+        </div>
       </div>
     </div>
   );

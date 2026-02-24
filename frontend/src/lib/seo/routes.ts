@@ -36,7 +36,8 @@ export const tools = [
   { id: 'flight-cancellation', name: 'Flight Cancellation Policy' },
   { id: 'refund-vs-credit', name: 'Refund vs Credit Audit' },
   { id: 'no-show-penalty', name: 'No-Show Penalty Rules' },
-  { id: 'family-baggage', name: 'Family Baggage Fees' }
+  { id: 'family-baggage', name: 'Family Baggage Fees' },
+  { id: 'partial-protection', name: 'Partial Protection Auditor' }
 ];
 
 // Helper for generateStaticParams in App Router

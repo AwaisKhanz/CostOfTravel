@@ -13,6 +13,7 @@ const allTools = [
   { id: 'refund-vs-credit', name: 'Refund vs Credit Audit', category: 'Flights', icon: Banknote },
   { id: 'no-show-penalty', name: 'No-Show Penalty Checker', category: 'Flights', icon: Ban },
   { id: 'family-baggage', name: 'Family Baggage Fee Calculator', category: 'Flights', icon: Briefcase },
+  { id: 'partial-protection', name: 'Partial Protection Auditor', category: 'Protection', icon: ShieldCheck },
 ];
 
 export default function ToolsPage() {

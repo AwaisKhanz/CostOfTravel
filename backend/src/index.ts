@@ -12,6 +12,7 @@ import { flightCancellationRouter } from './tools/flight-cancellation/index.js';
 import { refundVsCreditRouter } from './tools/refund-vs-credit/index.js';
 import { noShowPenaltyRouter } from './tools/no-show-penalty/index.js';
 import { familyBaggageRouter } from './tools/family-baggage/index.js';
+import partialProtectionRouter from './tools/partial-protection/index.js';
 import explainRouter from './routes/explain.js';
 import airportsRouter from './routes/airports.js';
 
@@ -41,6 +42,7 @@ app.use('/api/tools/flight-cancellation', flightCancellationRouter);
 app.use('/api/tools/refund-vs-credit', refundVsCreditRouter);
 app.use('/api/tools/no-show-penalty', noShowPenaltyRouter);
 app.use('/api/tools/family-baggage', familyBaggageRouter);
+app.use('/api/tools/partial-protection', partialProtectionRouter);
 
 app.use('/api/explain', explainRouter);
 app.use('/api/airports', airportsRouter);
