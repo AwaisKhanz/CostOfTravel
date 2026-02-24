@@ -6,18 +6,14 @@ import { airlines, tools, getAirlineStaticParams } from '@/lib/seo/routes';
 
 // Dynamically import the tools so we don't bundle all 21 into one page
 const toolComponents = {
-  'major-refunder': dynamic(() => import('@/app/tools/major-refunder/page')),
-  'baggage-fees': dynamic(() => import('@/app/tools/baggage-fees/page')),
-  'pet-carrier': dynamic(() => import('@/app/tools/pet-carrier/page')),
+  '24h-cancellation': dynamic(() => import('@/app/tools/24h-cancellation/page')),
+  'budget-checkin': dynamic(() => import('@/app/tools/budget-checkin/page')),
+  'pregnancy-cutoff': dynamic(() => import('@/app/tools/pregnancy-cutoff/page')),
   'pet-breed-ban': dynamic(() => import('@/app/tools/pet-breed-ban/page')),
-  'pregnancy-travel-eligibility': dynamic(() => import('@/app/tools/pregnancy-travel-eligibility/page')),
-  'airline-cancellation': dynamic(() => import('@/app/tools/airline-cancellation/page')),
-  'delay-comp': dynamic(() => import('@/app/tools/delay-comp/page')),
-  'missed-connection': dynamic(() => import('@/app/tools/missed-connection/page')),
-  'lost-baggage': dynamic(() => import('@/app/tools/lost-baggage/page')),
-  'denied-boarding': dynamic(() => import('@/app/tools/denied-boarding/page')),
-  'tarmac-delay': dynamic(() => import('@/app/tools/tarmac-delay/page')),
-  'delay-responsibility': dynamic(() => import('@/app/tools/delay-responsibility/page')),
+  'flight-cancellation': dynamic(() => import('@/app/tools/flight-cancellation/page')),
+  'refund-vs-credit': dynamic(() => import('@/app/tools/refund-vs-credit/page')),
+  'no-show-penalty': dynamic(() => import('@/app/tools/no-show-penalty/page')),
+  'family-baggage': dynamic(() => import('@/app/tools/family-baggage/page')),
 } as Record<string, any>;
 
 export function generateStaticParams() {

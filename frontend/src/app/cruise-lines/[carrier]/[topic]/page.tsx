@@ -6,7 +6,6 @@ import { cruiseLines, tools, getCruiseStaticParams } from '@/lib/seo/routes';
 
 const toolComponents = {
   'cruise-penalty': dynamic(() => import('@/app/tools/cruise-penalty/page')),
-  'pregnancy-travel-eligibility': dynamic(() => import('@/app/tools/pregnancy-travel-eligibility/page')),
 } as Record<string, any>;
 
 export function generateStaticParams() {

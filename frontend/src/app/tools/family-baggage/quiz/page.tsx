@@ -27,7 +27,7 @@ export default function FamilyBaggageQuiz() {
   const [result, setResult] = useState<any>(null);
   
   const router = useRouter();
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: {
       airline: "",
