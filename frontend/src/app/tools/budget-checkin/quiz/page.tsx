@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, Clock } from 'lucide-react';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function BudgetCheckinQuizPage() {
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
@@ -18,7 +19,7 @@ export default function BudgetCheckinQuizPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/tools/budget-checkin/questions')
+    fetch(getApiUrl('tools/budget-checkin/questions'))
       .then(res => res.json())
       .then(data => {
         const sorted = data.sort((a: any, b: any) => a.step - b.step);
@@ -56,7 +57,7 @@ export default function BudgetCheckinQuizPage() {
         passengerCount: Number(answers.passengerCount)
       };
 
-      const res = await fetch('http://localhost:8000/api/tools/budget-checkin', {
+      const res = await fetch(getApiUrl('tools/budget-checkin'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

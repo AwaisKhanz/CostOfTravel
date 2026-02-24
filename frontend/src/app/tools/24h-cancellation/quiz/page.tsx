@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ShieldCheck, ArrowRight, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { ShieldCheck, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, Clock, MapPin, HelpCircle } from 'lucide-react';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function TwentyFourHourCancellationQuizPage() {
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
@@ -23,7 +24,7 @@ export default function TwentyFourHourCancellationQuizPage() {
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/tools/24h-cancellation/questions')
+    fetch(getApiUrl('tools/24h-cancellation/questions'))
       .then(res => res.json())
       .then(data => {
         setQuizQuestions(data);
@@ -61,7 +62,7 @@ export default function TwentyFourHourCancellationQuizPage() {
         bookingChannel: channel || answers.bookingChannel
       };
 
-      const response = await fetch('http://localhost:8000/api/tools/24h-cancellation', {
+      const response = await fetch(getApiUrl('tools/24h-cancellation'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -89,7 +90,7 @@ export default function TwentyFourHourCancellationQuizPage() {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(async () => {
       try {
-        const res = await fetch(`http://localhost:8000/api/airports/search?q=${encodeURIComponent(query)}`);
+        const res = await fetch(getApiUrl(`airports/search?q=${encodeURIComponent(query)}`));
         const data = await res.json();
         setAirports(data);
         setShowDropdown(true);

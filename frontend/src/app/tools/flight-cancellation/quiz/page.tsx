@@ -11,6 +11,7 @@ import {
   Clock,
   DollarSign
 } from 'lucide-react';
+import { getApiUrl } from '@/lib/api-config';
 import { ToolLayout } from '@/components/tools/ToolLayout';
 import { ToolResult } from '@/components/tools/ToolResult';
 import { trackEvent } from '@/lib/tracking';
@@ -34,7 +35,7 @@ export default function FlightCancellationQuizPage() {
   useEffect(() => {
     async function loadQuestions() {
       try {
-        const res = await fetch('http://localhost:8000/api/tools/flight-cancellation/questions');
+        const res = await fetch(getApiUrl('tools/flight-cancellation/questions'));
         const data = await res.json();
         setQuizQuestions(data.sort((a: any, b: any) => a.step - b.step));
       } catch (err) {
@@ -73,7 +74,7 @@ export default function FlightCancellationQuizPage() {
     trackEvent('tool_submit', { toolId: 'flight-cancellation', airline: payload.airline });
 
     try {
-      const res = await fetch('http://localhost:8000/api/tools/flight-cancellation', {
+      const res = await fetch(getApiUrl('tools/flight-cancellation'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

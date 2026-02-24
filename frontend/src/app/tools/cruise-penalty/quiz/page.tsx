@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, TrendingUp } from 'lucide-react';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function CruisePenaltyQuizPage() {
   const [quizQuestions, setQuizQuestions] = useState<any[]>([]);
@@ -18,7 +19,7 @@ export default function CruisePenaltyQuizPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/tools/cruise-penalty/questions')
+    fetch(getApiUrl('tools/cruise-penalty/questions'))
       .then(res => res.json())
       .then(data => {
          // Sort by step just to be safe
@@ -57,7 +58,7 @@ export default function CruisePenaltyQuizPage() {
         totalTripCost: Number(answers.totalTripCost)
       };
 
-      const res = await fetch('http://localhost:8000/api/tools/cruise-penalty', {
+      const res = await fetch(getApiUrl('tools/cruise-penalty'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

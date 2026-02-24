@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getApiUrl } from '@/lib/api-config';
 import { CancellationOutput, OutcomeRisk } from '@/types/tool';
 import { trackEvent } from '@/lib/tracking';
 
@@ -30,7 +31,7 @@ export const ToolResult: React.FC<ToolResultProps> = ({ result }) => {
     setIsExplaining(true);
     setExplainError(null);
     try {
-      const response = await fetch('http://localhost:8000/api/explain', {
+      const response = await fetch(getApiUrl('explain'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(result)

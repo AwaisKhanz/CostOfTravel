@@ -2,16 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Banknote, 
-  ArrowRight, 
-  ArrowLeft, 
   ShieldCheck, 
-  XCircle, 
-  CheckCircle2,
-  Clock,
+  ArrowRight, 
+  CheckCircle2, 
+  AlertTriangle, 
+  AlertCircle, 
+  Clock, 
+  FileText,
+  ArrowLeft,
   DollarSign,
-  HelpCircle
+  HelpCircle,
+  Banknote,
+  XCircle
 } from 'lucide-react';
+import { getApiUrl } from '@/lib/api-config';
 import { ToolLayout } from '@/components/tools/ToolLayout';
 import { ToolResult } from '@/components/tools/ToolResult';
 import { trackEvent } from '@/lib/tracking';
@@ -36,7 +40,7 @@ export default function RefundVsCreditQuizPage() {
   useEffect(() => {
     async function loadQuestions() {
       try {
-        const res = await fetch('http://localhost:8000/api/tools/refund-vs-credit/questions');
+        const res = await fetch(getApiUrl('tools/refund-vs-credit/questions'));
         const data = await res.json();
         setQuizQuestions(data.sort((a: any, b: any) => a.step - b.step));
       } catch (err) {
@@ -77,7 +81,7 @@ export default function RefundVsCreditQuizPage() {
     trackEvent('tool_submit', { toolId: 'refund-vs-credit', airline: payload.airline });
 
     try {
-      const res = await fetch('http://localhost:8000/api/tools/refund-vs-credit', {
+      const res = await fetch(getApiUrl('tools/refund-vs-credit'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

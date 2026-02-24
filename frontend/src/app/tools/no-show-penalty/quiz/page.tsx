@@ -12,6 +12,7 @@ import {
   Users
 } from 'lucide-react';
 import { ToolLayout } from '@/components/tools/ToolLayout';
+import { getApiUrl } from '@/lib/api-config';
 import { ToolResult } from '@/components/tools/ToolResult';
 import { trackEvent } from '@/lib/tracking';
 
@@ -36,7 +37,7 @@ export default function NoShowPenaltyQuizPage() {
   useEffect(() => {
     async function loadQuestions() {
       try {
-        const res = await fetch('http://localhost:8000/api/tools/no-show-penalty/questions');
+        const res = await fetch(getApiUrl('tools/no-show-penalty/questions'));
         const data = await res.json();
         setQuizQuestions(data.sort((a: any, b: any) => a.step - b.step));
       } catch (err) {
@@ -78,7 +79,7 @@ export default function NoShowPenaltyQuizPage() {
     trackEvent('tool_submit', { toolId: 'no-show-penalty', airline: payload.airline });
 
     try {
-      const res = await fetch('http://localhost:8000/api/tools/no-show-penalty', {
+      const res = await fetch(getApiUrl('tools/no-show-penalty'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

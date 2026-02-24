@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Briefcase, ArrowRight, ArrowLeft, Loader2, Info, CheckCircle2, AlertTriangle, XOctagon, HelpCircle } from 'lucide-react';
 import { ToolResult } from '@/components/tools/ToolResult';
+import { getApiUrl } from '@/lib/api-config';
 import { trackEvent } from '@/lib/tracking';
 
 const schema = z.object({
@@ -43,7 +44,7 @@ export default function FamilyBaggageQuiz() {
   const watchAll = watch();
 
   useEffect(() => {
-    fetch('/api/tools/family-baggage/questions')
+    fetch(getApiUrl('tools/family-baggage/questions'))
       .then(res => res.json())
       .then(data => {
         setQuestions(data);
@@ -62,7 +63,7 @@ export default function FamilyBaggageQuiz() {
     trackEvent('tool_submit', { toolId: 'family_baggage', ...data });
     
     try {
-      const res = await fetch('/api/tools/family-baggage', {
+      const res = await fetch(getApiUrl('tools/family-baggage'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)

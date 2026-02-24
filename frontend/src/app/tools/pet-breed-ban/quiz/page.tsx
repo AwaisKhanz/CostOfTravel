@@ -12,6 +12,7 @@ import {
   Clock,
   Search
 } from 'lucide-react';
+import { getApiUrl } from '@/lib/api-config';
 import { ToolLayout } from '@/components/tools/ToolLayout';
 import { ToolResult } from '@/components/tools/ToolResult';
 import { trackEvent } from '@/lib/tracking';
@@ -34,7 +35,7 @@ export default function PetBreedQuizPage() {
   useEffect(() => {
     async function loadQuestions() {
       try {
-        const res = await fetch('http://localhost:8000/api/tools/pet-breed-ban/questions');
+        const res = await fetch(getApiUrl('tools/pet-breed-ban/questions'));
         const data = await res.json();
         setQuizQuestions(data.sort((a: any, b: any) => a.step - b.step));
       } catch (err) {
@@ -72,7 +73,7 @@ export default function PetBreedQuizPage() {
     trackEvent('tool_submit', { toolId: 'pet-breed-ban', airline: answers.airline });
 
     try {
-      const res = await fetch('http://localhost:8000/api/tools/pet-breed-ban', {
+      const res = await fetch(getApiUrl('tools/pet-breed-ban'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(answers),

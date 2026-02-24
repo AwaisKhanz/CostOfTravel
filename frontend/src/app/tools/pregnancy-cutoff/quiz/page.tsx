@@ -2,18 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  Baby, 
-  ArrowRight, 
-  ArrowLeft, 
-  ShieldCheck, 
-  AlertTriangle, 
-  XCircle, 
-  HelpCircle,
-  Clock,
-  CheckCircle2,
-  Stethoscope
-} from 'lucide-react';
+import { ShieldCheck, ArrowRight, CheckCircle2, AlertTriangle, AlertCircle, Clock, Baby, ArrowLeft, XCircle } from 'lucide-react';
+import { getApiUrl } from '@/lib/api-config';
 import { ToolLayout } from '@/components/tools/ToolLayout';
 import { ToolResult } from '@/components/tools/ToolResult';
 import { trackEvent } from '@/lib/tracking';
@@ -38,7 +28,7 @@ export default function PregnancyQuizPage() {
   useEffect(() => {
     async function loadQuestions() {
       try {
-        const res = await fetch('http://localhost:8000/api/tools/pregnancy-cutoff/questions');
+        const res = await fetch(getApiUrl('tools/pregnancy-cutoff/questions'));
         const data = await res.json();
         setQuizQuestions(data.sort((a: any, b: any) => a.step - b.step));
       } catch (err) {
@@ -81,7 +71,7 @@ export default function PregnancyQuizPage() {
     trackEvent('tool_submit', { toolId: 'pregnancy-cutoff', carrier: payload.carrier });
 
     try {
-      const res = await fetch('http://localhost:8000/api/tools/pregnancy-cutoff', {
+      const res = await fetch(getApiUrl('tools/pregnancy-cutoff'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
