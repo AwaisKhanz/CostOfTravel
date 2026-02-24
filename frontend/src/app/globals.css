@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/* Tailwind v4 CSS variables mapping */
+:root {
+  /* Core Colors */
+  --primary: #4f46e5;      /* Indigo 600 */
+  --primary-hover: #4338ca; /* Indigo 700 */
+  --primary-low: #eef2ff;   /* Indigo 50 */
+  
+  --secondary: #0f172a;    /* Slate 900 */
+  --secondary-low: #f8fafc; /* Slate 50 */
+  
+  /* Semantic Colors */
+  --success: #10b981;      /* Emerald 500 */
+  --warning: #f59e0b;      /* Amber 500 */
+  --danger: #ef4444;       /* Red 500 */
+  
+  /* UI Tokens */
+  --background: #f8f9fa; /* Clean neutral */
+  --foreground: #121826; /* Deep authoritative navy/black */
+  --card-bg: #ffffff;
+  --border-subtle: #e2e8f0;
+  --grid-line-color: rgba(100, 116, 139, 0.22);
+  --hero-mask-color: #000000;
+
+  /* The Project Brief Brand Colors - Precise & Deterministic */
+  --brand-primary-hex: #0a58ca;
+  --brand-primary-hover-hex: #084298;
+  --brand-primary-low: #eff6ff;
+  --brand-secondary-hex: #121826;
+  --brand-secondary-low: #f8f9fa;
+  --brand-secondary-hover-hex: #1c263b;
+  --brand-danger-hover-hex: #a61c30;
+  --on-brand-primary: #ffffff;
+  --on-brand-secondary: #f8fafc;
+  --on-brand-danger: #ffffff;
+
+  /* High-end Financial Outcome States */
+  --brand-success-hex: #198754;   /* Safe / 🟢 Green */
+  --brand-warning-hex: #f59e0b;   /* Partial Loss / 🟡 Yellow */
+  --brand-warning-dark-hex: #b45309;
+  --brand-danger-hex: #cd2139;    /* High Risk-Full Loss / 🔴 Red */
+  --brand-neutral-hex: #6c757d;   /* Cannot Determine / ⚪ Neutral */
+}
+
+@theme inline {
+  --color-brand-primary: var(--brand-primary-hex);
+  --color-brand-primary-hover: var(--brand-primary-hover-hex);
+  --color-brand-primary-low: var(--brand-primary-low);
+  
+  --color-brand-secondary: var(--brand-secondary-hex);
+  --color-brand-secondary-low: var(--brand-secondary-low);
+  --color-brand-secondary-hover: var(--brand-secondary-hover-hex);
+  
+  --color-brand-success: var(--brand-success-hex);
+  --color-brand-warning: var(--brand-warning-hex);
+  --color-brand-warning-dark: var(--brand-warning-dark-hex);
+  --color-brand-danger: var(--brand-danger-hex);
+  --color-brand-danger-hover: var(--brand-danger-hover-hex);
+  --color-brand-neutral: var(--brand-neutral-hex);
+  --color-on-brand-primary: var(--on-brand-primary);
+  --color-on-brand-secondary: var(--on-brand-secondary);
+  --color-on-brand-danger: var(--on-brand-danger);
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card-bg);
+  --color-border-subtle: var(--border-subtle);
+
+  --font-sans: "Inter", var(--font-geist-sans), ui-sans-serif, system-ui;
+  --font-mono: var(--font-geist-mono);
+  
+  --radius-button: 0.75rem;
+  --radius-card: 1.5rem;
+  
+  --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Dark Mode Theme Setup for `next-themes` */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: #020617; /* Very dark navy */
+    --foreground: #f8fafc; /* White text */
+    --card-bg: #0f172a;    /* Slightly lighter navy for cards */
+    --border-subtle: #1e293b; 
+    --grid-line-color: rgba(148, 163, 184, 0.16);
+    --brand-success-hex: #34d399;
+    --brand-warning-hex: #fbbf24;
+    --brand-warning-dark-hex: #f59e0b;
+    --brand-danger-hex: #fb7185;
+    --brand-neutral-hex: #94a3b8;
+    --secondary-low: #1e293b;
+    --brand-secondary-low: #1e293b;
+  }
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #f8fafc;
+  --card-bg: #0f172a;
+  --border-subtle: #1e293b;
+  --grid-line-color: rgba(148, 163, 184, 0.16);
+  --brand-success-hex: #34d399;
+  --brand-warning-hex: #fbbf24;
+  --brand-warning-dark-hex: #f59e0b;
+  --brand-danger-hex: #fb7185;
+  --brand-neutral-hex: #94a3b8;
+  --secondary-low: #1e293b;
+  --brand-secondary-low: #1e293b;
+}
+
+.light {
+  --background: #f8f9fa;
+  --foreground: #121826;
+  --card-bg: #ffffff;
+  --border-subtle: #e2e8f0;
+  --grid-line-color: rgba(100, 116, 139, 0.22);
+  --secondary-low: #f8fafc;
+  --brand-secondary-low: #f8f9fa;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.hero-grid-overlay {
+  background-image: linear-gradient(var(--grid-line-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line-color) 1px, transparent 1px);
+  background-size: 4rem 4rem;
+  mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, var(--hero-mask-color) 70%, transparent 100%);
+}
+
+.text-on-brand-primary {
+  color: var(--on-brand-primary);
+}
+
+.text-on-brand-secondary {
+  color: var(--on-brand-secondary);
+}
+
+.text-on-brand-danger {
+  color: var(--on-brand-danger);
+}
+
+.text-on-brand-secondary-60 {
+  color: color-mix(in srgb, var(--on-brand-secondary) 60%, transparent);
+}
+
+.text-on-brand-secondary-70 {
+  color: color-mix(in srgb, var(--on-brand-secondary) 70%, transparent);
+}
+
+.text-on-brand-secondary-80 {
+  color: color-mix(in srgb, var(--on-brand-secondary) 80%, transparent);
+}
+
+.border-on-brand-secondary-10 {
+  border-color: color-mix(in srgb, var(--on-brand-secondary) 10%, transparent);
+}
+
+.bg-brand-primary-surface {
+  background-color: color-mix(in srgb, var(--brand-primary-hex) 10%, var(--card-bg));
+}
+
+.hover-brand-primary-surface:hover {
+  background-color: color-mix(in srgb, var(--brand-primary-hex) 14%, var(--card-bg));
+}
+
+.group:hover .group-hover-brand-primary-surface {
+  background-color: color-mix(in srgb, var(--brand-primary-hex) 14%, var(--card-bg));
+}

@@ -1,0 +1,7 @@
+
+> backend@1.0.0 dev
+> tsx watch src/index.ts
+
+[dotenv@17.3.1] injecting env (2) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+GeographyService loaded 9063 airports.
+[server]: Server is running at http://localhost:8000
